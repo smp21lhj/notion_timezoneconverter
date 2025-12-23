@@ -1,192 +1,196 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <title>Timezone Converter Widget</title>
-  <script src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js"></script>
-  <style>
-    :root {
-      --bg: #ffffff;
-      --text: #111;
-      --sub: #666;
-      --border: #ddd;
-      --accent: #2563eb;
-    }
+<meta charset="UTF-8" />
+<title>Timezone Converter Widget</title>
+<script src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js"></script>
 
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #111;
-        --text: #f5f5f5;
-        --sub: #aaa;
-        --border: #333;
-      }
-    }
-
-    body {
-      font-family: system-ui, -apple-system, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      margin: 0;
-      padding: 16px;
-    }
-
-    input, select, button {
-      width: 100%;
-      padding: 10px;
-      margin-top: 8px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: var(--bg);
-      color: var(--text);
-      font-size: 14px;
-    }
-
-    button {
-      background: var(--accent);
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-
-    button.secondary {
-      background: transparent;
-      color: var(--sub);
-      border: 1px dashed var(--border);
-    }
-
-    .result {
-      margin-top: 14px;
-      padding: 12px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      font-size: 14px;
-      line-height: 1.6;
-    }
-
-    .small {
-      color: var(--sub);
-      font-size: 12px;
-    }
-
-    .row {
-      display: flex;
-      gap: 8px;
-    }
-
-    .row button {
-      flex: 1;
-    }
-  </style>
+<style>
+:root {
+  --bg: #ffffff;
+  --text: #111;
+  --sub: #666;
+  --border: #ddd;
+  --accent: #2563eb;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1e1e1e;
+    --text: #f5f5f5;
+    --sub: #aaa;
+    --border: #333;
+  }
+}
+body {
+  margin: 0;
+  padding: 14px;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont;
+  background: var(--bg);
+  color: var(--text);
+}
+.container {
+  max-width: 480px;
+}
+input, select, button {
+  width: 100%;
+  padding: 10px;
+  font-size: 14px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+.row {
+  display: flex;
+  gap: 6px;
+}
+.row input {
+  text-align: center;
+}
+button.primary {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+}
+button.secondary {
+  background: none;
+}
+.section {
+  margin-top: 14px;
+}
+.result {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  font-size: 14px;
+}
+.copy-buttons button {
+  margin-top: 6px;
+}
+label {
+  font-size: 13px;
+}
+.small {
+  font-size: 12px;
+  color: var(--sub);
+}
+</style>
 </head>
+
 <body>
-
-  <input id="input" placeholder="예: 2025년 12월 23일 20:00 EST" />
-
-  <select id="target">
-    <option value="Asia/Seoul">KST (한국)</option>
-    <option value="UTC">UTC</option>
-    <option value="America/New_York">EST / EDT</option>
-    <option value="Europe/London">GMT / BST</option>
-    <option value="America/Los_Angeles">PST / PDT</option>
-  </select>
-
-  <div class="row">
-    <button onclick="convert()">변환</button>
-    <button class="secondary" onclick="swap()">스왑</button>
+<div class="container">
+  <div class="section">
+    <label>시간 입력</label>
+    <div class="row">
+      <input type="number" id="year" placeholder="YYYY" inputmode="numeric">
+      <input type="number" id="month" placeholder="MM" inputmode="numeric">
+      <input type="number" id="day" placeholder="DD" inputmode="numeric">
+    </div>
+    <div class="row">
+      <input type="number" id="hour" placeholder="HH" inputmode="numeric">
+      <input type="number" id="minute" placeholder="MM" inputmode="numeric">
+    </div>
+    <select id="baseZone"></select>
   </div>
 
-  <div id="output" class="result"></div>
+  <div class="row">
+    <button class="primary" onclick="convert()">변환</button>
+    <button class="secondary" onclick="swapZone()">↔ 기준 시간대 전환</button>
+  </div>
+
+  <div class="section">
+    <label>결과 시간대 선택</label>
+    <div id="zoneCheckboxes"></div>
+  </div>
+
+  <div class="section result" id="result"></div>
+
+  <div class="section copy-buttons">
+    <button onclick="copyISO()">📋 ISO 복사</button>
+    <button onclick="copySlack()">📋 Slack 복사</button>
+    <button onclick="copyGoogle()">📋 Google Calendar 복사</button>
+  </div>
+</div>
 
 <script>
 const { DateTime } = luxon;
 
-const TZ_MAP = {
-  UTC: "UTC",
-  GMT: "UTC",
-  KST: "Asia/Seoul",
-  EST: "America/New_York",
-  EDT: "America/New_York",
-  CST: "America/Chicago",
-  CDT: "America/Chicago",
-  PST: "America/Los_Angeles",
-  PDT: "America/Los_Angeles"
-};
+const ZONES = [
+  { id: "Asia/Seoul", label: "KST (한국)", default: true },
+  { id: "UTC", label: "UTC / GMT", default: true },
+  { id: "America/New_York", label: "EST / EDT" },
+  { id: "America/Los_Angeles", label: "PST / PDT" },
+  { id: "Europe/London", label: "BST / GMT" },
+  { id: "Europe/Paris", label: "CET" },
+  { id: "Asia/Tokyo", label: "JST" },
+  { id: "Asia/Shanghai", label: "CST (China)" },
+  { id: "Australia/Sydney", label: "AEST" }
+];
 
-const regex =
-/(\d{4})[년\-\/\.]\s*(\d{1,2})[월\-\/\.]\s*(\d{1,2})[일]?\s*(\d{1,2}):(\d{2})\s*(AM|PM)?\s*([A-Za-z\/_]+)$/i;
+const baseSelect = document.getElementById("baseZone");
+const checkboxWrap = document.getElementById("zoneCheckboxes");
+
+ZONES.forEach(z => {
+  const opt = document.createElement("option");
+  opt.value = z.id;
+  opt.textContent = z.label;
+  baseSelect.appendChild(opt);
+
+  const label = document.createElement("label");
+  const cb = document.createElement("input");
+  cb.type = "checkbox";
+  cb.value = z.id;
+  cb.checked = !!z.default;
+  label.append(cb, " ", z.label);
+  checkboxWrap.appendChild(label);
+  checkboxWrap.appendChild(document.createElement("br"));
+});
+
+let lastBaseDateTime = null;
 
 function convert() {
-  const input = document.getElementById("input").value.trim();
-  const targetZone = document.getElementById("target").value;
-  const match = input.match(regex);
+  const y = year.value, m = month.value, d = day.value;
+  const h = hour.value || 0, min = minute.value || 0;
+  const zone = baseSelect.value;
 
-  if (!match) {
-    output("❌ 입력 형식을 인식할 수 없습니다.");
-    return;
-  }
+  lastBaseDateTime = DateTime.fromObject(
+    { year: y, month: m, day: d, hour: h, minute: min },
+    { zone }
+  );
 
-  let [_, y, m, d, h, min, ampm, tz] = match;
-  h = parseInt(h);
+  const result = document.getElementById("result");
+  result.innerHTML = "";
 
-  if (ampm) {
-    ampm = ampm.toUpperCase();
-    if (ampm === "PM" && h < 12) h += 12;
-    if (ampm === "AM" && h === 12) h = 0;
-  }
-
-  const sourceZone = TZ_MAP[tz.toUpperCase()] || tz;
-
-  const dt = DateTime.fromObject({
-    year: +y,
-    month: +m,
-    day: +d,
-    hour: +h,
-    minute: +min
-  }, { zone: sourceZone });
-
-  if (!dt.isValid) {
-    output("❌ 시간대가 올바르지 않습니다.");
-    return;
-  }
-
-  const target = dt.setZone(targetZone);
-  const kst = dt.setZone("Asia/Seoul");
-  const utc = dt.setZone("UTC");
-
-  const relative = kst.toRelativeCalendar({ locale: "ko" });
-
-  const dstNote = dt.isInDST ? "🌞 서머타임 적용 중" : "";
-
-  output(`
-<b>🎯 선택한 시간대</b><br>
-${target.toFormat("yyyy-LL-dd HH:mm ZZZZ")}<br><br>
-
-<b>🇰🇷 한국 (KST)</b><br>
-${kst.toFormat("yyyy-LL-dd HH:mm")}<br>
-
-<b>🌍 UTC</b><br>
-${utc.toFormat("yyyy-LL-dd HH:mm")}<br><br>
-
-<span class="small">🕰 ${relative || ""} ${dstNote}</span><br><br>
-
-<button onclick="copyText('${kst.toISO()}')">📋 KST ISO 복사</button>
-  `);
+  document.querySelectorAll("#zoneCheckboxes input:checked").forEach(cb => {
+    const dt = lastBaseDateTime.setZone(cb.value);
+    result.innerHTML += `<div><strong>${cb.nextSibling.textContent}</strong><br>${dt.toFormat("yyyy-MM-dd HH:mm")}</div><br>`;
+  });
 }
 
-function output(html) {
-  document.getElementById("output").innerHTML = html;
+function swapZone() {
+  const selected = baseSelect.value;
+  const checked = [...document.querySelectorAll("#zoneCheckboxes input:checked")];
+  if (!checked.length) return;
+  baseSelect.value = checked[0].value;
+  checked[0].checked = false;
 }
 
-function copyText(text) {
-  navigator.clipboard.writeText(text);
-  alert("복사됨");
+function copyISO() {
+  if (!lastBaseDateTime) return;
+  navigator.clipboard.writeText(lastBaseDateTime.toISO());
 }
 
-function swap() {
-  const out = document.getElementById("output").innerText;
-  if (out) document.getElementById("input").value = out.split("\n")[0];
+function copySlack() {
+  if (!lastBaseDateTime) return;
+  const ts = Math.floor(lastBaseDateTime.toSeconds());
+  navigator.clipboard.writeText(`<!date^${ts}^{date_short} {time}|${lastBaseDateTime.toISO()}>`);
+}
+
+function copyGoogle() {
+  if (!lastBaseDateTime) return;
+  const start = lastBaseDateTime.toUTC().toFormat("yyyyMMdd'T'HHmmss'Z'");
+  navigator.clipboard.writeText(start);
 }
 </script>
-
 </body>
 </html>
