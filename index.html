@@ -39,17 +39,22 @@ input, select, button {
   background: var(--bg);
   color: var(--text);
 }
+button:disabled {
+  opacity: 0.4;
+}
 .row {
   display: flex;
   gap: 6px;
   margin-bottom: 8px;
   align-items: center;
+  width: 100%;
 }
 .row input {
-  width: 70px;
+  width: 64px;
   text-align: center;
 }
-.row select {
+.row select,
+.row button {
   flex: 1;
 }
 button.primary {
@@ -65,7 +70,7 @@ button.primary {
 .copy-row {
   display: flex;
   gap: 6px;
-  margin-top: 6px;
+  width: 100%;
 }
 .copy-row button {
   flex: 1;
@@ -108,9 +113,9 @@ button.primary {
   <div class="result">
     <div id="resultText"></div>
     <div class="copy-row">
-      <button onclick="copyISO()">ISO</button>
-      <button onclick="copySlack()">Slack</button>
-      <button onclick="copyGoogle()">Google Calendar</button>
+      <button id="isoBtn" onclick="copyISO()" disabled>ISO</button>
+      <button id="slackBtn" onclick="copySlack()" disabled>Slack</button>
+      <button id="gcalBtn" onclick="copyGoogle()" disabled>Google Calendar</button>
     </div>
   </div>
 
@@ -144,6 +149,10 @@ targetZone.value = "Asia/Seoul";
 
 let lastConverted = null;
 
+function enableCopyButtons() {
+  isoBtn.disabled = slackBtn.disabled = gcalBtn.disabled = false;
+}
+
 function convert() {
   const base = DateTime.fromObject({
     year: +year.value,
@@ -167,23 +176,20 @@ function convert() {
     `<strong>${targetZone.options[targetZone.selectedIndex].text}</strong>
      <span class="offset">(${offsetText})</span><br>
      ${lastConverted.toFormat("yyyy-MM-dd HH:mm")}`;
+
+  enableCopyButtons();
 }
 
 function copyISO() {
-  if (!lastConverted) return;
   navigator.clipboard.writeText(lastConverted.toISO());
 }
-
 function copySlack() {
-  if (!lastConverted) return;
   const ts = Math.floor(lastConverted.toSeconds());
   navigator.clipboard.writeText(
     `<!date^${ts}^{date_short} {time}|${lastConverted.toISO()}>`
   );
 }
-
 function copyGoogle() {
-  if (!lastConverted) return;
   const g = lastConverted.toUTC().toFormat("yyyyMMdd'T'HHmmss'Z'");
   navigator.clipboard.writeText(g);
 }
