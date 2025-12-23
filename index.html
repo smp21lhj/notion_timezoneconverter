@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<title>Time Zone Converter</title>
+<title>시간대 변환기</title>
 <script src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js"></script>
 
 <style>
@@ -16,6 +16,13 @@
   .wrap {
     max-width: 420px;
     margin: auto;
+  }
+
+  .title {
+    text-align: center;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 12px;
   }
 
   .row {
@@ -80,6 +87,9 @@
 <body>
 <div class="wrap">
 
+  <!-- 제목 -->
+  <div class="title">시간대 변환기</div>
+
   <!-- 날짜 -->
   <div class="row">
     <input id="year" placeholder="YYYY" />
@@ -141,7 +151,6 @@ zoneList.forEach(z => {
   targetZone.add(new Option(z.label, z.value));
 });
 
-/* 🔥 초기 선택값 */
 baseZone.value = "UTC";
 targetZone.value = "Asia/Seoul";
 
@@ -159,7 +168,6 @@ function convert() {
   lastConverted = base.setZone(targetZone.value);
 
   const today = DateTime.now().setZone(targetZone.value);
-
   const diff = Math.floor(
     lastConverted.startOf("day")
       .diff(today.startOf("day"), "days").days
