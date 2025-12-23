@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<title>Timezone Converter Widget</title>
+<title>Notion Timezone Converter</title>
 <script src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js"></script>
 
 <style>
@@ -29,13 +29,11 @@ body {
   color: var(--text);
 }
 .container {
-  max-width: 480px;
+  max-width: 520px;
 }
 input, select, button {
-  width: 100%;
   padding: 10px;
   font-size: 14px;
-  margin-bottom: 8px;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--bg);
@@ -44,80 +42,86 @@ input, select, button {
 .row {
   display: flex;
   gap: 6px;
+  margin-bottom: 8px;
+  align-items: center;
 }
 .row input {
+  width: 70px;
   text-align: center;
+}
+.row select {
+  flex: 1;
 }
 button.primary {
   background: var(--accent);
   color: #fff;
   border: none;
 }
-button.secondary {
-  background: none;
-}
-.section {
-  margin-top: 14px;
-}
 .result {
+  margin-top: 10px;
+  padding-top: 8px;
   border-top: 1px solid var(--border);
-  padding-top: 10px;
-  font-size: 14px;
 }
-.copy-buttons button {
+.copy-row {
+  display: flex;
+  gap: 6px;
   margin-top: 6px;
 }
-label {
-  font-size: 13px;
+.copy-row button {
+  flex: 1;
 }
-.small {
+.label {
+  font-size: 13px;
+  color: var(--sub);
+  margin-bottom: 4px;
+}
+.offset {
   font-size: 12px;
   color: var(--sub);
+  margin-left: 6px;
 }
 </style>
 </head>
 
 <body>
 <div class="container">
-  <div class="section">
-    <label>시간 입력</label>
-    <div class="row">
-      <input type="number" id="year" placeholder="YYYY" inputmode="numeric">
-      <input type="number" id="month" placeholder="MM" inputmode="numeric">
-      <input type="number" id="day" placeholder="DD" inputmode="numeric">
-    </div>
-    <div class="row">
-      <input type="number" id="hour" placeholder="HH" inputmode="numeric">
-      <input type="number" id="minute" placeholder="MM" inputmode="numeric">
-    </div>
+
+  <div class="label">시간 입력</div>
+  <div class="row">
+    <input type="number" id="year" placeholder="YYYY">
+    <span>년</span>
+    <input type="number" id="month" placeholder="MM">
+    <span>월</span>
+    <input type="number" id="day" placeholder="DD">
+    <span>일</span>
+    <input type="number" id="hour" placeholder="HH">
+    <span>:</span>
+    <input type="number" id="minute" placeholder="MM">
     <select id="baseZone"></select>
   </div>
 
   <div class="row">
+    <select id="targetZone"></select>
     <button class="primary" onclick="convert()">변환</button>
-    <button class="secondary" onclick="swapZone()">↔ 기준 시간대 전환</button>
   </div>
 
-  <div class="section">
-    <label>결과 시간대 선택</label>
-    <div id="zoneCheckboxes"></div>
+  <div class="result">
+    <div id="resultText"></div>
+    <div class="copy-row">
+      <button onclick="copyISO()">ISO</button>
+      <button onclick="copySlack()">Slack</button>
+      <button onclick="copyGoogle()">Google Calendar</button>
+    </div>
   </div>
 
-  <div class="section result" id="result"></div>
-
-  <div class="section copy-buttons">
-    <button onclick="copyISO()">📋 ISO 복사</button>
-    <button onclick="copySlack()">📋 Slack 복사</button>
-    <button onclick="copyGoogle()">📋 Google Calendar 복사</button>
-  </div>
 </div>
 
 <script>
 const { DateTime } = luxon;
 
 const ZONES = [
-  { id: "Asia/Seoul", label: "KST (한국)", default: true },
-  { id: "UTC", label: "UTC / GMT", default: true },
+  { id: "Asia/Seoul", label: "KST (한국)" },
+  { id: "UTC", label: "UTC / GMT" },
   { id: "America/New_York", label: "EST / EDT" },
   { id: "America/Los_Angeles", label: "PST / PDT" },
   { id: "Europe/London", label: "BST / GMT" },
@@ -127,69 +131,61 @@ const ZONES = [
   { id: "Australia/Sydney", label: "AEST" }
 ];
 
-const baseSelect = document.getElementById("baseZone");
-const checkboxWrap = document.getElementById("zoneCheckboxes");
+const baseZone = document.getElementById("baseZone");
+const targetZone = document.getElementById("targetZone");
 
 ZONES.forEach(z => {
-  const opt = document.createElement("option");
-  opt.value = z.id;
-  opt.textContent = z.label;
-  baseSelect.appendChild(opt);
-
-  const label = document.createElement("label");
-  const cb = document.createElement("input");
-  cb.type = "checkbox";
-  cb.value = z.id;
-  cb.checked = !!z.default;
-  label.append(cb, " ", z.label);
-  checkboxWrap.appendChild(label);
-  checkboxWrap.appendChild(document.createElement("br"));
+  baseZone.add(new Option(z.label, z.id));
+  targetZone.add(new Option(z.label, z.id));
 });
 
-let lastBaseDateTime = null;
+baseZone.value = "America/New_York";
+targetZone.value = "Asia/Seoul";
+
+let lastConverted = null;
 
 function convert() {
-  const y = year.value, m = month.value, d = day.value;
-  const h = hour.value || 0, min = minute.value || 0;
-  const zone = baseSelect.value;
+  const base = DateTime.fromObject({
+    year: +year.value,
+    month: +month.value,
+    day: +day.value,
+    hour: +hour.value || 0,
+    minute: +minute.value || 0
+  }, { zone: baseZone.value });
 
-  lastBaseDateTime = DateTime.fromObject(
-    { year: y, month: m, day: d, hour: h, minute: min },
-    { zone }
+  lastConverted = base.setZone(targetZone.value);
+
+  const dayDiff = Math.floor(
+    lastConverted.startOf("day").diff(base.startOf("day"), "days").days
   );
 
-  const result = document.getElementById("result");
-  result.innerHTML = "";
+  let offsetText = "당일";
+  if (dayDiff > 0) offsetText = `+${dayDiff}일 뒤`;
+  if (dayDiff < 0) offsetText = `${dayDiff}일 전`;
 
-  document.querySelectorAll("#zoneCheckboxes input:checked").forEach(cb => {
-    const dt = lastBaseDateTime.setZone(cb.value);
-    result.innerHTML += `<div><strong>${cb.nextSibling.textContent}</strong><br>${dt.toFormat("yyyy-MM-dd HH:mm")}</div><br>`;
-  });
-}
-
-function swapZone() {
-  const selected = baseSelect.value;
-  const checked = [...document.querySelectorAll("#zoneCheckboxes input:checked")];
-  if (!checked.length) return;
-  baseSelect.value = checked[0].value;
-  checked[0].checked = false;
+  document.getElementById("resultText").innerHTML =
+    `<strong>${targetZone.options[targetZone.selectedIndex].text}</strong>
+     <span class="offset">(${offsetText})</span><br>
+     ${lastConverted.toFormat("yyyy-MM-dd HH:mm")}`;
 }
 
 function copyISO() {
-  if (!lastBaseDateTime) return;
-  navigator.clipboard.writeText(lastBaseDateTime.toISO());
+  if (!lastConverted) return;
+  navigator.clipboard.writeText(lastConverted.toISO());
 }
 
 function copySlack() {
-  if (!lastBaseDateTime) return;
-  const ts = Math.floor(lastBaseDateTime.toSeconds());
-  navigator.clipboard.writeText(`<!date^${ts}^{date_short} {time}|${lastBaseDateTime.toISO()}>`);
+  if (!lastConverted) return;
+  const ts = Math.floor(lastConverted.toSeconds());
+  navigator.clipboard.writeText(
+    `<!date^${ts}^{date_short} {time}|${lastConverted.toISO()}>`
+  );
 }
 
 function copyGoogle() {
-  if (!lastBaseDateTime) return;
-  const start = lastBaseDateTime.toUTC().toFormat("yyyyMMdd'T'HHmmss'Z'");
-  navigator.clipboard.writeText(start);
+  if (!lastConverted) return;
+  const g = lastConverted.toUTC().toFormat("yyyyMMdd'T'HHmmss'Z'");
+  navigator.clipboard.writeText(g);
 }
 </script>
 </body>
