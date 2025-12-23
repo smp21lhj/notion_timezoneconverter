@@ -27,7 +27,9 @@
 
   input, select, button {
     font-size: 13px;
-    padding: 6px;
+    padding: 6px 8px;
+    height: 32px;
+    box-sizing: border-box;
   }
 
   input {
@@ -45,6 +47,9 @@
 
   button {
     cursor: pointer;
+    background: #f5f5f5;
+    border: 1px solid #ccc;
+    border-radius: 4px;
   }
 
   .result {
@@ -75,7 +80,7 @@
 <body>
 <div class="wrap">
 
-  <!-- 날짜 입력 -->
+  <!-- 날짜 -->
   <div class="row">
     <input id="year" placeholder="YYYY" />
     <span>년</span>
@@ -102,7 +107,7 @@
   <!-- 결과 -->
   <div class="result" id="resultText"></div>
 
-  <!-- 복사 버튼 -->
+  <!-- 복사 -->
   <div class="copy-row">
     <button id="isoBtn" onclick="copyISO()" disabled>ISO 복사</button>
     <button id="slackBtn" onclick="copySlack()" disabled>Slack 복사</button>
@@ -114,30 +119,31 @@
 <script>
 const { DateTime } = luxon;
 
-const zones = [
-  "Asia/Seoul",
-  "UTC",
-  "Europe/London",
-  "Europe/Paris",
-  "America/New_York",
-  "America/Chicago",
-  "America/Los_Angeles",
-  "Asia/Tokyo",
-  "Asia/Shanghai",
-  "Asia/Singapore",
-  "Australia/Sydney"
+const zoneList = [
+  { value: "UTC", label: "UTC / GMT" },
+  { value: "Asia/Seoul", label: "Asia/Seoul (KST)" },
+  { value: "Europe/London", label: "Europe/London" },
+  { value: "Europe/Paris", label: "Europe/Paris" },
+  { value: "America/New_York", label: "America/New_York" },
+  { value: "America/Chicago", label: "America/Chicago" },
+  { value: "America/Los_Angeles", label: "America/Los_Angeles" },
+  { value: "Asia/Tokyo", label: "Asia/Tokyo" },
+  { value: "Asia/Shanghai", label: "Asia/Shanghai" },
+  { value: "Asia/Singapore", label: "Asia/Singapore" },
+  { value: "Australia/Sydney", label: "Australia/Sydney" }
 ];
 
 const baseZone = document.getElementById("baseZone");
 const targetZone = document.getElementById("targetZone");
 
-zones.forEach(z => {
-  baseZone.add(new Option(z, z));
-  targetZone.add(new Option(z, z));
+zoneList.forEach(z => {
+  baseZone.add(new Option(z.label, z.value));
+  targetZone.add(new Option(z.label, z.value));
 });
 
-baseZone.value = "Asia/Seoul";
-targetZone.value = "UTC";
+/* 🔥 초기 선택값 */
+baseZone.value = "UTC";
+targetZone.value = "Asia/Seoul";
 
 let lastConverted = null;
 
@@ -165,7 +171,7 @@ function convert() {
                 `D${diff}`;
 
   document.getElementById("resultText").innerHTML =
-    `<strong>${targetZone.value}</strong>
+    `<strong>${targetZone.options[targetZone.selectedIndex].text}</strong>
      <span class="offset">(${dday})</span><br>
      ${lastConverted.toFormat("yyyy-MM-dd HH:mm")}`;
 
