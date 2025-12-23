@@ -2,98 +2,111 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<title>Notion Timezone Converter</title>
+<title>Time Zone Converter</title>
 <script src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js"></script>
 
 <style>
-:root {
-  --bg:#fff; --text:#111; --sub:#666; --border:#ddd; --accent:#2563eb;
-}
-@media (prefers-color-scheme: dark) {
-  :root { --bg:#1e1e1e; --text:#f5f5f5; --sub:#aaa; --border:#333; }
-}
-body {
-  margin:0; padding:14px;
-  font-family:system-ui;
-  background:var(--bg); color:var(--text);
-}
-.container { max-width:520px; }
-input, select, button {
-  padding:10px; font-size:14px;
-  border-radius:8px;
-  border:1px solid var(--border);
-  background:var(--bg); color:var(--text);
-}
-button:disabled { opacity:.4; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #fff;
+    margin: 0;
+    padding: 12px;
+  }
 
-.row { display:flex; gap:6px; margin-bottom:8px; }
-.row input { width:80px; text-align:center; }
-.row select, .row button { flex:1; }
+  .wrap {
+    max-width: 420px;
+    margin: auto;
+  }
 
-button.primary {
-  background:var(--accent); color:#fff; border:none;
-}
+  .row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 8px;
+  }
 
-.label {
-  font-size:13px; color:var(--sub); margin-bottom:4px;
-}
+  input, select, button {
+    font-size: 13px;
+    padding: 6px;
+  }
 
-.result {
-  margin-top:10px;
-  padding-top:8px;
-  border-top:1px solid var(--border);
-}
+  input {
+    width: 70px;
+    text-align: center;
+  }
 
-.copy-row {
-  display:flex; gap:6px; margin-top:6px;
-}
-.copy-row button { flex:1; }
+  input.time {
+    width: 60px;
+  }
 
-.offset {
-  font-size:12px; color:var(--sub); margin-left:6px;
-}
-.toast {
-  font-size:12px; color:var(--sub); margin-top:4px;
-}
+  select {
+    flex: 1;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  .result {
+    margin-top: 10px;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  .offset {
+    color: #888;
+    font-size: 12px;
+    margin-left: 4px;
+  }
+
+  .copy-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  .copy-row button {
+    flex: 1;
+    font-size: 12px;
+  }
 </style>
 </head>
 
 <body>
-<div class="container">
+<div class="wrap">
 
-  <!-- 날짜 -->
+  <!-- 날짜 입력 -->
   <div class="row">
-    <input id="year" placeholder="YYYY">
+    <input id="year" placeholder="YYYY" />
     <span>년</span>
-    <input id="month" placeholder="MM">
+    <input id="month" placeholder="MM" />
     <span>월</span>
-    <input id="day" placeholder="DD">
+    <input id="day" placeholder="DD" />
     <span>일</span>
   </div>
 
   <!-- 시간 + 기준 시간대 -->
   <div class="row">
-    <input id="hour" placeholder="HH">
+    <input id="hour" class="time" placeholder="HH" />
     <span>:</span>
-    <input id="minute" placeholder="MM">
+    <input id="minute" class="time" placeholder="MM" />
     <select id="baseZone"></select>
   </div>
 
-  <!-- 변환 -->
+  <!-- 변환 시간대 -->
   <div class="row">
     <select id="targetZone"></select>
-    <button class="primary" onclick="convert()">변환</button>
+    <button onclick="convert()">변환</button>
   </div>
 
   <!-- 결과 -->
-  <div class="result">
-    <div id="resultText"></div>
-    <div class="copy-row">
-      <button id="isoBtn" onclick="copyISO()" disabled>ISO 복사</button>
-      <button id="slackBtn" onclick="copySlack()" disabled>Slack 복사</button>
-      <button id="gcalBtn" onclick="copyGoogle()" disabled>Google Calendar 복사</button>
-    </div>
-    <div class="toast" id="toast"></div>
+  <div class="result" id="resultText"></div>
+
+  <!-- 복사 버튼 -->
+  <div class="copy-row">
+    <button id="isoBtn" onclick="copyISO()" disabled>ISO 복사</button>
+    <button id="slackBtn" onclick="copySlack()" disabled>Slack 복사</button>
+    <button id="gcalBtn" onclick="copyGCal()" disabled>Google Calendar 복사</button>
   </div>
 
 </div>
@@ -101,36 +114,41 @@ button.primary {
 <script>
 const { DateTime } = luxon;
 
-const ZONES = [
-  ["Asia/Seoul","KST (한국)"],
-  ["UTC","UTC / GMT"],
-  ["America/New_York","EST / EDT"],
-  ["America/Los_Angeles","PST / PDT"],
-  ["Europe/London","BST / GMT"],
-  ["Europe/Paris","CET"],
-  ["Asia/Tokyo","JST"],
-  ["Asia/Shanghai","CST"],
-  ["Australia/Sydney","AEST"]
+const zones = [
+  "Asia/Seoul",
+  "UTC",
+  "Europe/London",
+  "Europe/Paris",
+  "America/New_York",
+  "America/Chicago",
+  "America/Los_Angeles",
+  "Asia/Tokyo",
+  "Asia/Shanghai",
+  "Asia/Singapore",
+  "Australia/Sydney"
 ];
 
-ZONES.forEach(z=>{
-  baseZone.add(new Option(z[1],z[0]));
-  targetZone.add(new Option(z[1],z[0]));
+const baseZone = document.getElementById("baseZone");
+const targetZone = document.getElementById("targetZone");
+
+zones.forEach(z => {
+  baseZone.add(new Option(z, z));
+  targetZone.add(new Option(z, z));
 });
 
-baseZone.value="America/New_York";
-targetZone.value="Asia/Seoul";
+baseZone.value = "Asia/Seoul";
+targetZone.value = "UTC";
 
-let lastConverted=null;
+let lastConverted = null;
 
-function convert(){
+function convert() {
   const base = DateTime.fromObject({
-    year:+year.value,
-    month:+month.value,
-    day:+day.value,
-    hour:+hour.value||0,
-    minute:+minute.value||0
-  },{zone:baseZone.value});
+    year: +year.value,
+    month: +month.value,
+    day: +day.value,
+    hour: +hour.value || 0,
+    minute: +minute.value || 0
+  }, { zone: baseZone.value });
 
   lastConverted = base.setZone(targetZone.value);
 
@@ -141,38 +159,33 @@ function convert(){
       .diff(today.startOf("day"), "days").days
   );
 
-  const label =
-    diff === 0 ? "당일" :
-    diff > 0  ? `+${diff}일 뒤` :
-                `${diff}일 전`;
+  const dday =
+    diff === 0 ? "D-day" :
+    diff > 0  ? `D+${diff}` :
+                `D${diff}`;
 
-  resultText.innerHTML =
-    `<strong>${targetZone.selectedOptions[0].text}</strong>
-     <span class="offset">(${label})</span><br>
+  document.getElementById("resultText").innerHTML =
+    `<strong>${targetZone.value}</strong>
+     <span class="offset">(${dday})</span><br>
      ${lastConverted.toFormat("yyyy-MM-dd HH:mm")}`;
 
   isoBtn.disabled = slackBtn.disabled = gcalBtn.disabled = false;
 }
 
-
-function legacyCopy(text){
-  const ta=document.createElement("textarea");
-  ta.value=text;
-  document.body.appendChild(ta);
-  ta.select();
-  document.execCommand("copy");
-  ta.remove();
-  toast.textContent="✓ 복사됨";
-  setTimeout(()=>toast.textContent="",1500);
+function copyISO() {
+  navigator.clipboard.writeText(lastConverted.toISO());
 }
 
-function copyISO(){ legacyCopy(lastConverted.toISO()); }
-function copySlack(){
-  const ts=Math.floor(lastConverted.toSeconds());
-  legacyCopy(`<!date^${ts}^{date_short} {time}|${lastConverted.toISO()}>`);
+function copySlack() {
+  navigator.clipboard.writeText(
+    `<!date^${Math.floor(lastConverted.toSeconds())}^{date_short} {time}|${lastConverted.toISO()}>`
+  );
 }
-function copyGoogle(){
-  legacyCopy(lastConverted.toUTC().toFormat("yyyyMMdd'T'HHmmss'Z'"));
+
+function copyGCal() {
+  navigator.clipboard.writeText(
+    lastConverted.toUTC().toFormat("yyyyMMdd'T'HHmmss'Z'")
+  );
 }
 </script>
 </body>
